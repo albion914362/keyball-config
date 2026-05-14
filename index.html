@@ -331,7 +331,76 @@ input[type=text]:focus { border-color: var(--accent); }
 .rule-key { font-family: var(--mono); font-size: 12px; color: var(--text); }
 .rule-val { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 1px; }
 
-/* Scrollbar */
+/* Key Picker */
+.key-picker-panel {
+  display: none;
+  margin-top: .75rem;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.key-picker-panel.visible { display: block; }
+.picker-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .6rem 1rem; background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap; gap: 8px;
+}
+.picker-info { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12px; }
+.picker-info-label { color: var(--muted); }
+.picker-info-cur { color: var(--amber); background: rgba(251,191,36,.1); padding: 1px 8px; border-radius: 4px; }
+.picker-arrow { color: var(--muted); }
+.picker-info-next { color: var(--green); background: rgba(52,211,153,.1); padding: 1px 8px; border-radius: 4px; min-width: 80px; }
+.picker-actions { display: flex; gap: 6px; }
+.picker-tabs {
+  display: flex; gap: 0; overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: none;
+}
+.picker-tabs::-webkit-scrollbar { display: none; }
+.ptab {
+  flex-shrink: 0; padding: 6px 14px;
+  font-family: var(--mono); font-size: 11px;
+  color: var(--muted); background: transparent;
+  border: none; border-bottom: 2px solid transparent;
+  cursor: pointer; transition: all .12s; white-space: nowrap;
+}
+.ptab:hover { color: var(--text); background: rgba(255,255,255,.03); }
+.ptab.active { color: var(--accent); border-bottom-color: var(--accent); background: rgba(79,156,249,.06); }
+.picker-search-wrap { padding: .5rem .75rem; border-bottom: 1px solid var(--border); }
+.picker-search {
+  width: 100%; background: var(--surface); border: 1px solid var(--border2);
+  color: var(--text); font-family: var(--sans); font-size: 12px;
+  padding: 5px 10px; border-radius: 5px; outline: none;
+}
+.picker-search:focus { border-color: var(--accent); }
+.picker-grid {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  padding: .75rem; max-height: 200px; overflow-y: auto;
+}
+.pkey {
+  font-family: var(--mono); font-size: 10px;
+  background: var(--surface); border: 1px solid var(--border2);
+  color: var(--text); padding: 5px 8px; border-radius: 5px;
+  cursor: pointer; transition: all .1s; white-space: nowrap;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+}
+.pkey:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,156,249,.08); }
+.pkey.picked { border-color: var(--green); color: var(--green); background: rgba(52,211,153,.1); }
+.pkey-sub { font-size: 9px; color: var(--muted); }
+.picker-special {
+  border-top: 1px solid var(--border);
+  padding: .6rem .75rem;
+  background: var(--surface);
+}
+.picker-special-title { font-size: 10px; color: var(--muted); font-family: var(--mono); letter-spacing: .06em; text-transform: uppercase; margin-bottom: .4rem; }
+.picker-special-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.picker-special-label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.picker-special-sel { padding: 3px 6px; font-size: 12px; font-family: var(--mono); width: 56px; }
+.picker-special-btn { padding: 3px 10px; font-size: 11px; }
+.picker-special-sep { width: 1px; height: 18px; background: var(--border2); margin: 0 6px; }
+
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--surface); }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
@@ -638,16 +707,52 @@ input[type=text]:focus { border-color: var(--accent); }
         左半分(上) ＋ 右半分(下) の順で表示
       </div>
       <div id="keygrid" class="keygrid"></div>
-      <div id="key-editor" class="key-editor-panel">
-        <div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:.5rem;">
-          選択中: <span id="sel-pos" style="color:var(--accent)">—</span>
-          &nbsp;現在: <span id="sel-cur" style="color:var(--amber)">—</span>
+      <!-- キーピッカー -->
+      <div id="key-picker" class="key-picker-panel">
+        <div class="picker-header">
+          <div class="picker-info">
+            <span class="picker-info-label">変更対象:</span>
+            <span id="sel-cur" class="picker-info-cur">—</span>
+            <span class="picker-arrow">→</span>
+            <span id="picker-preview" class="picker-info-next">キーを選択</span>
+          </div>
+          <div class="picker-actions">
+            <button class="btn btn-primary" id="picker-apply" onclick="applyKey()" disabled>適用</button>
+            <button class="btn btn-ghost" onclick="closeEditor()">✕</button>
+          </div>
         </div>
-        <div class="key-editor-row">
-          <label>変更後:</label>
-          <input type="text" id="new-kc" placeholder="例: KC_CAPS, MO(1), LT(2,KC_SPC)">
-          <button class="btn btn-primary" onclick="applyKey()">適用</button>
-          <button class="btn btn-ghost" onclick="closeEditor()">キャンセル</button>
+        <!-- カテゴリタブ -->
+        <div class="picker-tabs" id="picker-tabs"></div>
+        <!-- 検索 -->
+        <div class="picker-search-wrap">
+          <input type="text" id="picker-search" class="picker-search" placeholder="🔍  キー名で検索 (例: ctrl, esc, f1…)" oninput="filterPicker(this.value)">
+        </div>
+        <!-- キー一覧 -->
+        <div class="picker-grid" id="picker-grid"></div>
+        <!-- 特殊入力（LT / MO） -->
+        <div class="picker-special">
+          <div class="picker-special-title">レイヤー操作キー</div>
+          <div class="picker-special-row">
+            <span class="picker-special-label">MO( </span>
+            <select id="mo-layer" class="picker-special-sel">
+              <option>0</option><option>1</option><option>2</option><option>3</option><option>4</option>
+            </select>
+            <span class="picker-special-label"> )</span>
+            <button class="btn btn-ghost picker-special-btn" onclick="pickSpecial('MO')">選択</button>
+            <span class="picker-special-sep"></span>
+            <span class="picker-special-label">LT( </span>
+            <select id="lt-layer" class="picker-special-sel">
+              <option>0</option><option>1</option><option>2</option><option>3</option><option>4</option>
+            </select>
+            <span class="picker-special-label">, </span>
+            <select id="lt-key" class="picker-special-sel" style="width:90px;">
+              <option value="KC_SPC">SPC</option><option value="KC_ENT">ENT</option>
+              <option value="KC_BSPC">BSPC</option><option value="KC_TAB">TAB</option>
+              <option value="KC_LNG1">LNG1</option><option value="KC_LNG2">LNG2</option>
+            </select>
+            <span class="picker-special-label"> )</span>
+            <button class="btn btn-ghost picker-special-btn" onclick="pickSpecial('LT')">選択</button>
+          </div>
         </div>
       </div>
       <div style="display:flex;gap:1rem;margin-top:.75rem;font-size:11px;font-family:var(--mono);color:var(--muted);">
@@ -807,23 +912,176 @@ function buildGrid() {
     grid.appendChild(d);
   });
 }
+// ---- Key Picker data ----
+const PICKER_CATS = [
+  { id: 'basic', label: '基本', keys: [
+    {c:'KC_A',l:'A'},{c:'KC_B',l:'B'},{c:'KC_C',l:'C'},{c:'KC_D',l:'D'},{c:'KC_E',l:'E'},
+    {c:'KC_F',l:'F'},{c:'KC_G',l:'G'},{c:'KC_H',l:'H'},{c:'KC_I',l:'I'},{c:'KC_J',l:'J'},
+    {c:'KC_K',l:'K'},{c:'KC_L',l:'L'},{c:'KC_M',l:'M'},{c:'KC_N',l:'N'},{c:'KC_O',l:'O'},
+    {c:'KC_P',l:'P'},{c:'KC_Q',l:'Q'},{c:'KC_R',l:'R'},{c:'KC_S',l:'S'},{c:'KC_T',l:'T'},
+    {c:'KC_U',l:'U'},{c:'KC_V',l:'V'},{c:'KC_W',l:'W'},{c:'KC_X',l:'X'},{c:'KC_Y',l:'Y'},
+    {c:'KC_Z',l:'Z'},
+    {c:'KC_1',l:'1'},{c:'KC_2',l:'2'},{c:'KC_3',l:'3'},{c:'KC_4',l:'4'},{c:'KC_5',l:'5'},
+    {c:'KC_6',l:'6'},{c:'KC_7',l:'7'},{c:'KC_8',l:'8'},{c:'KC_9',l:'9'},{c:'KC_0',l:'0'},
+  ]},
+  { id: 'mod', label: '修飾キー', keys: [
+    {c:'KC_LSFT',l:'L-Shift'},{c:'KC_RSFT',l:'R-Shift'},
+    {c:'KC_LCTL',l:'L-Ctrl'},{c:'KC_RCTL',l:'R-Ctrl'},
+    {c:'KC_LALT',l:'L-Alt'},{c:'KC_RALT',l:'R-Alt'},
+    {c:'KC_LGUI',l:'L-GUI'},{c:'KC_RGUI',l:'R-GUI'},
+    {c:'KC_CAPS',l:'CapsLk'},
+  ]},
+  { id: 'fn', label: 'F1-F12', keys: [
+    {c:'KC_F1',l:'F1'},{c:'KC_F2',l:'F2'},{c:'KC_F3',l:'F3'},{c:'KC_F4',l:'F4'},
+    {c:'KC_F5',l:'F5'},{c:'KC_F6',l:'F6'},{c:'KC_F7',l:'F7'},{c:'KC_F8',l:'F8'},
+    {c:'KC_F9',l:'F9'},{c:'KC_F10',l:'F10'},{c:'KC_F11',l:'F11'},{c:'KC_F12',l:'F12'},
+  ]},
+  { id: 'nav', label: '矢印・ナビ', keys: [
+    {c:'KC_UP',l:'↑'},{c:'KC_DOWN',l:'↓'},{c:'KC_LEFT',l:'←'},{c:'KC_RGHT',l:'→'},
+    {c:'KC_HOME',l:'Home'},{c:'KC_END',l:'End'},
+    {c:'KC_PGUP',l:'PgUp'},{c:'KC_PGDN',l:'PgDn'},
+    {c:'KC_INS',l:'Ins'},{c:'KC_DEL',l:'Del'},
+  ]},
+  { id: 'edit', label: '編集', keys: [
+    {c:'KC_ESC',l:'Esc'},{c:'KC_TAB',l:'Tab'},{c:'KC_SPC',l:'Space'},
+    {c:'KC_ENT',l:'Enter'},{c:'KC_BSPC',l:'BkSp'},
+    {c:'KC_PSCR',l:'PrtSc'},{c:'KC_SCRL',l:'ScrLk'},{c:'KC_PAUS',l:'Pause'},
+    {c:'KC_MINS',l:'-'},{c:'KC_EQL',l:'='},{c:'KC_LBRC',l:'['},{c:'KC_RBRC',l:']'},
+    {c:'KC_BSLS',l:'\\'},{c:'KC_SCLN',l:';'},{c:'KC_QUOT',l:"'"},{c:'KC_GRV',l:'`'},
+    {c:'KC_COMM',l:','},{c:'KC_DOT',l:'.'},{c:'KC_SLSH',l:'/'},
+    {c:'KC_INT1',l:'_（JP）'},{c:'KC_INT3',l:'¥（JP）'},
+    {c:'KC_LNG1',l:'かな'},{c:'KC_LNG2',l:'英数'},
+    {c:'KC_NUHS',l:'#（JP）'},
+  ]},
+  { id: 'mouse', label: 'マウス', keys: [
+    {c:'KC_BTN1',l:'左click'},{c:'KC_BTN2',l:'右click'},{c:'KC_BTN3',l:'中click'},
+    {c:'KC_MY_BTN1',l:'自動\nBtn1',s:'自動マウス'},{c:'KC_MY_BTN2',l:'自動\nBtn2',s:'自動マウス'},
+    {c:'KC_WH_U',l:'↑scroll'},{c:'KC_WH_D',l:'↓scroll'},
+    {c:'KC_WH_L',l:'←scroll'},{c:'KC_WH_R',l:'→scroll'},
+    {c:'SCRL_MO',l:'Scroll\nMO',s:'Keyball'},{c:'SCRL_TO',l:'Scroll\nTO',s:'Keyball'},
+    {c:'SCRL_DVI',l:'Scrl+',s:'Keyball'},{c:'SCRL_DVD',l:'Scrl-',s:'Keyball'},
+  ]},
+  { id: 'keyball', label: 'Keyball', keys: [
+    {c:'CPI_I100',l:'CPI+100',s:'CPI'},{c:'CPI_D100',l:'CPI-100',s:'CPI'},
+    {c:'CPI_I1K', l:'CPI+1K', s:'CPI'},{c:'CPI_D1K', l:'CPI-1K', s:'CPI'},
+    {c:'KBC_SAVE',l:'設定保存',s:'EEPROM'},{c:'KBC_RST',l:'設定\nリセット',s:'EEPROM'},
+    {c:'QK_BOOT', l:'Boot\nloader',s:'QMK'},{c:'QK_CLEAR_EEPROM',l:'EEPROM\nクリア',s:'QMK'},
+  ]},
+  { id: 'rgb', label: 'RGB', keys: [
+    {c:'RGB_TOG',l:'RGB\nON/OFF'},{c:'RGB_MOD',l:'Mode+'},{c:'RGB_RMOD',l:'Mode-'},
+    {c:'RGB_HUI',l:'Hue+'},{c:'RGB_HUD',l:'Hue-'},
+    {c:'RGB_SAI',l:'Sat+'},{c:'RGB_SAD',l:'Sat-'},
+    {c:'RGB_VAI',l:'Val+'},{c:'RGB_VAD',l:'Val-'},
+    {c:'RGB_M_P',l:'常時点灯'},{c:'RGB_M_B',l:'Breathe'},
+    {c:'RGB_M_R',l:'Rainbow'},{c:'RGB_M_SW',l:'Swirl'},
+    {c:'RGB_M_SN',l:'Snake'},{c:'RGB_M_K',l:'Knight'},
+    {c:'RGB_M_X',l:'X-Mas'},{c:'RGB_M_G',l:'Gradient'},
+    {c:'RGB_M_T',l:'Heatmap'},{c:'RGB_M_TW',l:'TW-Twist'},
+  ]},
+  { id: 'special', label: 'その他', keys: [
+    {c:'_______',l:'透過\n（下レイヤー）',s:'Pass-thru'},
+    {c:'XXXXXXX',l:'無効\n（何もしない）',s:'No-op'},
+  ]},
+];
+
+let pickerCat = 'basic';
+let pickerPending = null;  // 選択中のキーコード（未確定）
+
+function initPicker() {
+  const tabs = document.getElementById('picker-tabs');
+  tabs.innerHTML = PICKER_CATS.map(cat =>
+    `<button class="ptab${cat.id === pickerCat ? ' active' : ''}" onclick="switchPickerCat('${cat.id}',this)">${cat.label}</button>`
+  ).join('');
+  renderPickerGrid();
+}
+
+function switchPickerCat(id, el) {
+  pickerCat = id;
+  document.querySelectorAll('.ptab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('picker-search').value = '';
+  renderPickerGrid();
+}
+
+function renderPickerGrid(filter) {
+  const cat = PICKER_CATS.find(c => c.id === pickerCat) || PICKER_CATS[0];
+  let keys = cat.keys;
+  if (filter) {
+    const f = filter.toLowerCase();
+    keys = PICKER_CATS.flatMap(c => c.keys).filter(k =>
+      k.c.toLowerCase().includes(f) || k.l.toLowerCase().includes(f)
+    );
+  }
+  const grid = document.getElementById('picker-grid');
+  grid.innerHTML = keys.map(k => {
+    const isPicked = pickerPending === k.c;
+    const label = k.l.replace(/\n/g, '<br>');
+    const sub = k.s ? `<span class="pkey-sub">${k.s}</span>` : '';
+    return `<div class="pkey${isPicked ? ' picked' : ''}" onclick="pendKey('${k.c}',this)">${label}${sub}</div>`;
+  }).join('');
+}
+
+function filterPicker(val) {
+  if (val) {
+    // search mode: flatten all cats
+    const f = val.toLowerCase();
+    const keys = PICKER_CATS.flatMap(c => c.keys).filter(k =>
+      k.c.toLowerCase().includes(f) || k.l.toLowerCase().includes(f)
+    );
+    const grid = document.getElementById('picker-grid');
+    grid.innerHTML = keys.map(k => {
+      const isPicked = pickerPending === k.c;
+      const label = k.l.replace(/\n/g, '<br>');
+      const sub = k.s ? `<span class="pkey-sub">${k.s}</span>` : '';
+      return `<div class="pkey${isPicked ? ' picked' : ''}" onclick="pendKey('${k.c}',this)">${label}${sub}</div>`;
+    }).join('');
+  } else {
+    renderPickerGrid();
+  }
+}
+
+function pendKey(code, el) {
+  pickerPending = code;
+  document.querySelectorAll('.pkey').forEach(k => k.classList.remove('picked'));
+  el.classList.add('picked');
+  document.getElementById('picker-preview').textContent = code;
+  document.getElementById('picker-apply').disabled = false;
+}
+
+function pickSpecial(type) {
+  let code;
+  if (type === 'MO') {
+    const n = document.getElementById('mo-layer').value;
+    code = `MO(${n})`;
+  } else {
+    const n = document.getElementById('lt-layer').value;
+    const k = document.getElementById('lt-key').value;
+    code = `LT(${n},${k})`;
+  }
+  pickerPending = code;
+  document.getElementById('picker-preview').textContent = code;
+  document.getElementById('picker-apply').disabled = false;
+  document.querySelectorAll('.pkey').forEach(k => k.classList.remove('picked'));
+}
+
 function selectKey(i, k) {
   selectedKeyIdx = i;
-  document.getElementById('sel-pos').textContent = 'L' + currentLayer + '-K' + i;
   document.getElementById('sel-cur').textContent = k || '(空)';
-  document.getElementById('new-kc').value = '';
-  document.getElementById('key-editor').classList.add('visible');
+  document.getElementById('picker-preview').textContent = 'キーを選択';
+  document.getElementById('picker-apply').disabled = true;
+  pickerPending = null;
+  document.getElementById('key-picker').classList.add('visible');
   buildGrid();
 }
 function applyKey() {
-  const nc = document.getElementById('new-kc').value.trim();
-  if (!nc || selectedKeyIdx === null) return;
-  layers[currentLayer][selectedKeyIdx] = nc;
+  if (pickerPending === null || selectedKeyIdx === null) return;
+  layers[currentLayer][selectedKeyIdx] = pickerPending;
   closeEditor();
 }
 function closeEditor() {
   selectedKeyIdx = null;
-  document.getElementById('key-editor').classList.remove('visible');
+  pickerPending = null;
+  document.getElementById('key-picker').classList.remove('visible');
   buildGrid();
 }
 function switchLayer(n, el) {
@@ -1100,6 +1358,7 @@ function render() {
 }
 
 // Init
+initPicker();
 buildGrid();
 render();
 </script>
