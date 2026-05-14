@@ -308,14 +308,18 @@ input[type=text]:focus { border-color: var(--accent); }
   margin-bottom: .5rem;
 }
 .code-filename { font-family: var(--mono); font-size: 11px; color: var(--accent); }
-.copy-btn {
+.copy-btn, .dl-btn {
   font-family: var(--mono); font-size: 11px;
   background: var(--surface2); border: 1px solid var(--border2);
   color: var(--muted); padding: 3px 10px; border-radius: 4px;
   cursor: pointer; transition: all .15s;
+  text-decoration: none; display: inline-block;
 }
-.copy-btn:hover { color: var(--text); border-color: var(--muted); }
+.copy-btn:hover, .dl-btn:hover { color: var(--text); border-color: var(--muted); }
 .copy-btn.copied { color: var(--green); border-color: var(--green); }
+.dl-btn { color: var(--accent); border-color: rgba(79,156,249,.4); }
+.dl-btn:hover { background: rgba(79,156,249,.1); border-color: var(--accent); color: var(--accent); }
+.code-btn-group { display: flex; gap: 6px; align-items: center; }
 
 /* Rules toggles */
 .rules-grid { display: grid; gap: .5rem; }
@@ -697,6 +701,7 @@ input[type=text]:focus { border-color: var(--accent); }
   </div>
 
   <div id="out-configh"></div>
+  <div id="out-keymapC"></div>
   <div id="out-rulesmk"></div>
 </div>
 
@@ -893,7 +898,10 @@ function renderCodeBlock(containerId, filename, code) {
   c.innerHTML = `
     <div class="code-header" style="margin-top:1.25rem;">
       <span class="code-filename">${filename}</span>
-      <button class="copy-btn" onclick="copyCode(this, '${containerId}-pre')">コピー</button>
+      <div class="code-btn-group">
+        <button class="copy-btn" onclick="copyCode(this, '${containerId}-pre')">コピー</button>
+        <a class="dl-btn" onclick="downloadFile('${containerId}-pre', '${filename}')">↓ ダウンロード</a>
+      </div>
     </div>
     <pre class="code-block" id="${containerId}-pre">${escHtml(code)}</pre>`;
 }
@@ -901,15 +909,194 @@ function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replac
 function copyCode(btn, preId) {
   const text = document.getElementById(preId).textContent;
   navigator.clipboard.writeText(text).then(() => {
-    btn.textContent = '✓ コピーしました';
+    btn.textContent = '✓ コピー済み';
     btn.classList.add('copied');
     setTimeout(() => { btn.textContent = 'コピー'; btn.classList.remove('copied'); }, 2000);
   });
 }
+function downloadFile(preId, filename) {
+  const text = document.getElementById(preId).textContent;
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ---- keymap.c generator ----
+function fmtRow(keys, start, end) {
+  return '    ' + keys.slice(start, end).map(k => (k || '_______').padEnd(12)).join(', ');
+}
+function genKeymapC() {
+  const resetTime  = getV('input[oninput*="rst-v"]', 800);
+  const clickThr   = getV('input[oninput*="thr-v"]', 0);
+  const clickLyr   = getS('click-layer', '4');
+  const scrollLyr  = getS('scroll-layer', '3');
+
+  const scrollCond = scrollLyr === 'both'
+    ? 'get_highest_layer(state) == 1 || get_highest_layer(state) == 3'
+    : `get_highest_layer(state) == ${scrollLyr}`;
+
+  function layerBlock(n) {
+    const k = layers[n];
+    // rows: 0-11, 12-23, 24-35, 36-49, 50-63 — but layer data is 70 keys in 14-col rows
+    const rows = [];
+    for (let r = 0; r < 5; r++) {
+      const s = r * 14, e = s + 14;
+      const slice = k.slice(s, e).map(v => v || '_______');
+      // remove trailing empty placeholder columns (col 12-13 which are spacers in layout)
+      const trimmed = (r < 4) ? slice.slice(0, 12) : slice;
+      rows.push('    ' + trimmed.map(v => v.padEnd(12)).join(', '));
+    }
+    return rows.join(',\n');
+  }
+
+  return `/*
+Copyright 2022 @Yowkees
+Copyright 2022 MURAOKA Taro (aka KoRoN, @kaoriya)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+*/
+
+#include QMK_KEYBOARD_H
+#include "quantum.h"
+
+enum custom_keycodes
+{
+  KC_MY_BTN1 = KEYBALL_SAFE_RANGE,
+  KC_MY_BTN2,
+  KC_MY_BTN3
+};
+
+enum click_state
+{
+  NONE = 0,
+  WAITING,
+  CLICKABLE,
+  CLICKING,
+};
+
+enum click_state state;
+uint16_t click_timer;
+
+uint16_t to_reset_time = ${resetTime};
+const int16_t to_clickable_movement = ${clickThr};
+const uint16_t click_layer = ${clickLyr};
+
+int16_t mouse_movement;
+
+void enable_click_layer(void)  { layer_on(click_layer);  click_timer = timer_read(); state = CLICKABLE; }
+void disable_click_layer(void) { state = NONE; layer_off(click_layer); }
+int16_t my_abs(int16_t num)    { return num < 0 ? -num : num; }
+bool is_clickable_mode(void)   { return state == CLICKABLE || state == CLICKING; }
+
+bool process_record_user(uint16_t keycode, keyrecord_t *record)
+{
+  switch (keycode) {
+  case KC_MY_BTN1: case KC_MY_BTN2: case KC_MY_BTN3: {
+    report_mouse_t currentReport = pointing_device_get_report();
+    uint8_t btn = 1 << (keycode - KC_MY_BTN1);
+    if (record->event.pressed) { currentReport.buttons |= btn;  state = CLICKING; }
+    else                       { currentReport.buttons &= ~btn; enable_click_layer(); }
+    pointing_device_set_report(currentReport);
+    pointing_device_send();
+    return false;
+  }
+  default:
+    if (record->event.pressed) disable_click_layer();
+  }
+  return true;
+}
+
+report_mouse_t pointing_device_task_user(report_mouse_t mouse_report)
+{
+  int16_t current_x = mouse_report.x;
+  int16_t current_y = mouse_report.y;
+  if (current_x != 0 || current_y != 0) {
+    switch (state) {
+    case CLICKABLE: click_timer = timer_read(); break;
+    case CLICKING:  break;
+    case WAITING:
+      mouse_movement += my_abs(current_x) + my_abs(current_y);
+      if (mouse_movement >= to_clickable_movement) { mouse_movement = 0; enable_click_layer(); }
+      break;
+    default: click_timer = timer_read(); state = WAITING; mouse_movement = 0;
+    }
+  } else {
+    switch (state) {
+    case CLICKING: break;
+    case CLICKABLE:
+      if (timer_elapsed(click_timer) > to_reset_time) disable_click_layer();
+      break;
+    case WAITING:
+      if (timer_elapsed(click_timer) > 50) { mouse_movement = 0; state = NONE; }
+      break;
+    default: mouse_movement = 0; state = NONE;
+    }
+  }
+  mouse_report.x = current_x;
+  mouse_report.y = current_y;
+  return mouse_report;
+}
+
+// clang-format off
+const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
+  [0] = LAYOUT_universal(
+${layerBlock(0)}
+  ),
+  [1] = LAYOUT_universal(
+${layerBlock(1)}
+  ),
+  [2] = LAYOUT_universal(
+${layerBlock(2)}
+  ),
+  [3] = LAYOUT_universal(
+${layerBlock(3)}
+  ),
+  [4] = LAYOUT_universal(
+${layerBlock(4)}
+  )
+};
+// clang-format on
+
+void keyboard_post_init_user(void) { rgb_matrix_reload_from_eeprom(); }
+
+layer_state_t layer_state_set_user(layer_state_t state)
+{
+  keyball_set_scroll_mode(${scrollCond});
+  uint8_t layer = biton32(state);
+  switch (layer) {
+  case 4:
+    rgb_matrix_mode_noeeprom(RGB_MATRIX_SOLID_COLOR);
+    rgb_matrix_sethsv_noeeprom(HSV_WHITE);
+    break;
+  default:
+    rgb_matrix_reload_from_eeprom();
+  }
+  return state;
+}
+
+#ifdef OLED_ENABLE
+#include "lib/oledkit/oledkit.h"
+void oledkit_render_info_user(void)
+{
+  keyball_oled_render_keyinfo();
+  keyball_oled_render_ballinfo();
+  oled_write_P(PSTR("Layer:"), false);
+  oled_write(get_u8_str(get_highest_layer(layer_state), ' '), false);
+}
+#endif`;
+}
 
 function render() {
-  renderCodeBlock('out-configh', 'config.h', genConfigH());
-  renderCodeBlock('out-rulesmk', 'rules.mk', genRulesMk());
+  renderCodeBlock('out-configh',  'config.h',  genConfigH());
+  renderCodeBlock('out-keymapC',  'keymap.c',  genKeymapC());
+  renderCodeBlock('out-rulesmk',  'rules.mk',  genRulesMk());
 }
 
 // Init
