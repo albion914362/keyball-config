@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keyball Config Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+JP:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181c27;
+  --surface2: #1e2333;
+  --border: #2a3047;
+  --border2: #3a4563;
+  --text: #e2e8f0;
+  --muted: #7a8499;
+  --accent: #4f9cf9;
+  --accent2: #7c3aed;
+  --green: #34d399;
+  --amber: #fbbf24;
+  --red: #f87171;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Noto Sans JP', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+/* Layout */
+.app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 1.5rem 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+.sidebar-logo {
+  padding: 0 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+.logo-title {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: .04em;
+}
+.logo-sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+  font-family: var(--mono);
+}
+.nav-group-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: .75rem 1.25rem .3rem;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: .5rem 1.25rem;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: all .15s;
+  user-select: none;
+}
+.nav-item:hover { color: var(--text); background: var(--surface2); }
+.nav-item.active {
+  color: var(--accent);
+  border-left-color: var(--accent);
+  background: rgba(79,156,249,.08);
+}
+.nav-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; flex-shrink: 0;
+}
+
+/* Main */
+.main { padding: 2rem 2.5rem; max-width: 860px; }
+.page { display: none; }
+.page.active { display: block; }
+
+.page-header { margin-bottom: 2rem; }
+.page-title {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+.page-desc { font-size: 12px; color: var(--muted); margin-top: 4px; font-family: var(--mono); }
+
+/* Cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+.card-header {
+  padding: .75rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.card-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.card-file {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--accent);
+  background: rgba(79,156,249,.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.card-body { padding: 1.25rem; }
+
+/* Rows */
+.row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 1.5rem;
+  padding: .65rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.row:last-child { border-bottom: none; padding-bottom: 0; }
+.row:first-child { padding-top: 0; }
+.row-label { font-size: 13px; color: var(--text); }
+.row-hint { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
+.row-ctrl { display: flex; align-items: center; gap: 10px; }
+
+/* Slider */
+input[type=range] {
+  -webkit-appearance: none;
+  width: 140px; height: 3px;
+  background: var(--border2);
+  border-radius: 2px; outline: none; cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(79,156,249,.2);
+  transition: box-shadow .15s;
+}
+input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgba(79,156,249,.3); }
+.val-badge {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(79,156,249,.1);
+  padding: 2px 10px;
+  border-radius: 4px;
+  min-width: 72px;
+  text-align: center;
+}
+
+/* Select */
+select {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+}
+select:focus { border-color: var(--accent); }
+
+/* Toggle */
+.toggle-wrap { display: flex; align-items: center; gap: 8px; }
+.toggle {
+  position: relative; width: 36px; height: 20px;
+  background: var(--border2); border-radius: 10px;
+  cursor: pointer; transition: background .2s;
+}
+.toggle.on { background: var(--accent); }
+.toggle::after {
+  content: ''; position: absolute;
+  top: 3px; left: 3px;
+  width: 14px; height: 14px;
+  background: #fff; border-radius: 50%;
+  transition: transform .2s;
+}
+.toggle.on::after { transform: translateX(16px); }
+.toggle-label { font-size: 12px; font-family: var(--mono); }
+.toggle-label.on { color: var(--green); }
+.toggle-label.off { color: var(--muted); }
+
+/* Keymap */
+.layer-tabs {
+  display: flex; gap: 4px; margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border); padding-bottom: .75rem;
+}
+.ltab {
+  font-family: var(--mono); font-size: 11px; padding: 4px 12px;
+  border: 1px solid var(--border2); border-radius: 4px;
+  background: transparent; color: var(--muted); cursor: pointer;
+  transition: all .15s;
+}
+.ltab:hover { color: var(--text); border-color: var(--muted); }
+.ltab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.keygrid {
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  gap: 3px;
+}
+.key {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  padding: 5px 2px;
+  font-family: var(--mono);
+  font-size: 9px;
+  text-align: center;
+  color: var(--muted);
+  cursor: pointer;
+  min-height: 36px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 2px;
+  transition: all .12s;
+  line-height: 1.2;
+  user-select: none;
+}
+.key:hover { border-color: var(--accent); color: var(--text); }
+.key.selected { background: rgba(79,156,249,.15); border-color: var(--accent); color: var(--accent); }
+.key.mo { border-color: #7c3aed44; color: #a78bfa; }
+.key.lt { border-color: #05966944; color: #34d399; }
+.key.empty { color: #3a4563; border-color: var(--border); cursor: default; }
+.key.empty:hover { border-color: var(--border); color: #3a4563; }
+.key-top { font-size: 8px; color: var(--muted); }
+
+.key-editor-panel {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 1rem;
+  margin-top: .75rem;
+  display: none;
+}
+.key-editor-panel.visible { display: block; }
+.key-editor-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.key-editor-panel label { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+input[type=text] {
+  background: var(--surface); border: 1px solid var(--border2);
+  color: var(--text); font-family: var(--mono); font-size: 12px;
+  padding: 5px 10px; border-radius: 5px; outline: none; width: 180px;
+}
+input[type=text]:focus { border-color: var(--accent); }
+.btn {
+  font-family: var(--mono); font-size: 12px; padding: 6px 14px;
+  border-radius: 5px; cursor: pointer; transition: all .15s; border: 1px solid;
+}
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { opacity: .85; }
+.btn-ghost { background: transparent; color: var(--muted); border-color: var(--border2); }
+.btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+
+/* Code output */
+.code-block {
+  background: #0a0d14;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #8be0a4;
+  white-space: pre;
+  overflow-x: auto;
+  line-height: 1.7;
+}
+.code-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: .5rem;
+}
+.code-filename { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+.copy-btn {
+  font-family: var(--mono); font-size: 11px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--muted); padding: 3px 10px; border-radius: 4px;
+  cursor: pointer; transition: all .15s;
+}
+.copy-btn:hover { color: var(--text); border-color: var(--muted); }
+.copy-btn.copied { color: var(--green); border-color: var(--green); }
+
+/* Rules toggles */
+.rules-grid { display: grid; gap: .5rem; }
+.rule-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .6rem 0; border-bottom: 1px solid var(--border);
+}
+.rule-row:last-child { border-bottom: none; }
+.rule-key { font-family: var(--mono); font-size: 12px; color: var(--text); }
+.rule-val { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; display: flex; flex-wrap: wrap; padding: .75rem; gap: .5rem; }
+  .sidebar-logo { border-bottom: none; padding-bottom: 0; width: 100%; }
+  .nav-group-label { display: none; }
+  .nav-item { border-radius: 6px; border-left: none; padding: .4rem .75rem; }
+  .nav-item.active { border-left: none; background: rgba(79,156,249,.15); }
+  .main { padding: 1.25rem; }
+  input[type=range] { width: 100px; }
+  .keygrid { grid-template-columns: repeat(7, 1fr); }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-title">⬡ keyball.cfg</div>
+    <div class="logo-sub">keyball61 / QMK firmware</div>
+  </div>
+  <div class="nav-group-label">設定</div>
+  <div class="nav-item active" onclick="show('mouse', this)">
+    <span class="nav-dot"></span>トラックボール
+  </div>
+  <div class="nav-item" onclick="show('rgb', this)">
+    <span class="nav-dot"></span>RGB ライティング
+  </div>
+  <div class="nav-item" onclick="show('auto', this)">
+    <span class="nav-dot"></span>自動マウスレイヤー
+  </div>
+  <div class="nav-item" onclick="show('keymap', this)">
+    <span class="nav-dot"></span>キーマップ
+  </div>
+  <div class="nav-group-label">出力</div>
+  <div class="nav-item" onclick="show('output', this)">
+    <span class="nav-dot"></span>コード生成
+  </div>
+</nav>
+
+<!-- Main -->
+<main class="main">
+
+<!-- トラックボール -->
+<div id="page-mouse" class="page active">
+  <div class="page-header">
+    <div class="page-title">// trackball</div>
+    <div class="page-desc">光学センサー PMW3360DM の動作設定</div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">センサー感度</span>
+      <span class="card-file">config.h</span>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div>
+          <div class="row-label">CPI (カーソル解像度)</div>
+          <div class="row-hint">KEYBALL_CPI_DEFAULT — 小さいと低速・精密、大きいと高速</div>
+        </div>
+        <div class="row-ctrl">
+          <input type="range" min="100" max="12000" step="100" value="700"
+            oninput="setVal('cpi-v', this.value+' CPI'); render()">
+          <span class="val-badge" id="cpi-v">700 CPI</span>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">スクロール除数</div>
+          <div class="row-hint">KEYBALL_SCROLL_DIV_DEFAULT — D0=最速 / D7=最遅</div>
+        </div>
+        <div class="row-ctrl">
+          <input type="range" min="0" max="7" step="1" value="4"
+            oninput="setVal('scrl-v', 'D'+this.value+' (1/'+(1<<+this.value)+')'); render()">
+          <span class="val-badge" id="scrl-v">D4 (1/16)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">タップ遅延</span>
+      <span class="card-file">config.h</span>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div>
+          <div class="row-label">TAP_CODE_DELAY</div>
+          <div class="row-hint">タップ判定の遅延時間 (ms)。誤検知が多い場合は増やす</div>
+        </div>
+        <div class="row-ctrl">
+          <input type="range" min="0" max="50" step="1" value="5"
+            oninput="setVal('tap-v', this.value+' ms'); render()">
+          <span class="val-badge" id="tap-v">5 ms</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RGB -->
+<div id="page-rgb" class="page">
+  <div class="page-header">
+    <div class="page-title">// rgb_matrix</div>
+    <div class="page-desc">LED バックライトの設定 (74 LEDs)</div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">デフォルトエフェクト</span>
+      <span class="card-file">config.h</span>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div>
+          <div class="row-label">デフォルトモード</div>
+          <div class="row-hint">RGB_MATRIX_DEFAULT_MODE — 起動時のエフェクト</div>
+        </div>
+        <select id="rgb-mode" onchange="render()">
+          <option value="RGB_MATRIX_TYPING_HEATMAP" selected>タイピングヒートマップ</option>
+          <option value="RGB_MATRIX_SOLID_REACTIVE_MULTIWIDE">リアクティブ マルチワイド</option>
+          <option value="RGB_MATRIX_SOLID_COLOR">単色点灯</option>
+          <option value="RGB_MATRIX_RAINBOW_MOVING_CHEVRON">レインボー シェブロン</option>
+          <option value="RGB_MATRIX_BREATHING">ブリージング</option>
+          <option value="RGB_MATRIX_BAND_SAT">バンド彩度</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">輝度 / 色</span>
+      <span class="card-file">config.h</span>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div>
+          <div class="row-label">最大輝度</div>
+          <div class="row-hint">RGB_MATRIX_MAXIMUM_BRIGHTNESS (0–255)</div>
+        </div>
+        <div class="row-ctrl">
+          <input type="range" min="0" max="255" value="125" oninput="setVal('br-v',this.value);render()">
+          <span class="val-badge" id="br-v">125</span>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">デフォルト色相 (HUE)</div>
+          <div class="row-hint">RGB_MATRIX_DEFAULT_HUE (0–255)</div>
+        </div>
+        <div class="row-ctrl">
+          <input type="range" min="0" max="255" value="125" oninput="setVal('hue-v',this.value);render()">
+          <span class="val-badge" id="hue-v">125</span>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">デフォルト彩度 (SAT)</div>
+          <div class="row-hint">RGB_MATRIX_DEFAULT_SAT (0–255)</div>
+        </div>
+        <div class="row-ctrl">
+          <input type="range" min="0" max="255" value="255" oninput="setVal('sat-v',this.value);render()">
+          <span class="val-badge" id="sat-v">255</span>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">デフォルト明度 (VAL)</div>
+          <div class="row-hint">RGB_MATRIX_DEFAULT_VAL (0–255)</div>
+        </div>
+        <div class="row-ctrl">
+          <input type="range" min="0" max="255" value="125" oninput="setVal('val-v',this.value);render()">
+          <span class="val-badge" id="val-v">125</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">ヒートマップ詳細設定</span>
+      <span class="card-file">config.h</span>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div>
+          <div class="row-label">スプレッド範囲</div>
+          <div class="row-hint">TYPING_HEATMAP_SPREAD (0–64) — 熱が広がる範囲</div>
+        </div>
+        <div class="row-ctrl">
+          <input type="range" min="0" max="64" value="32" oninput="setVal('sp-v',this.value);render()">
+          <span class="val-badge" id="sp-v">32</span>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">冷却速度</div>
+          <div class="row-hint">DECREASE_DELAY_MS (ms) — 小さいほど早く冷める</div>
+        </div>
+        <div class="row-ctrl">
+          <input type="range" min="5" max="200" step="5" value="25" oninput="setVal('cool-v',this.value+'ms');render()">
+          <span class="val-badge" id="cool-v">25ms</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 自動マウスレイヤー -->
+<div id="page-auto" class="page">
+  <div class="page-header">
+    <div class="page-title">// auto_mouse_layer</div>
+    <div class="page-desc">トラックボールを動かすと自動でレイヤーが切り替わる機能</div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">レイヤー設定</span>
+      <span class="card-file">keymap.c</span>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div>
+          <div class="row-label">マウスレイヤー番号</div>
+          <div class="row-hint">click_layer — マウス入力時に有効化されるレイヤー</div>
+        </div>
+        <select id="click-layer" onchange="render()">
+          <option value="3">Layer 3</option>
+          <option value="4" selected>Layer 4</option>
+        </select>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">スクロールモードレイヤー</div>
+          <div class="row-hint">keyball_set_scroll_mode — 該当レイヤー保持中にスクロール</div>
+        </div>
+        <select id="scroll-layer" onchange="render()">
+          <option value="3" selected>Layer 3</option>
+          <option value="1">Layer 1</option>
+          <option value="both">Layer 1 + 3</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">タイマー設定</span>
+      <span class="card-file">keymap.c</span>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div>
+          <div class="row-label">非操作タイムアウト</div>
+          <div class="row-hint">to_reset_time — この時間静止するとレイヤー解除 (ms)</div>
+        </div>
+        <div class="row-ctrl">
+          <input type="range" min="100" max="5000" step="50" value="800"
+            oninput="setVal('rst-v',this.value+'ms');render()">
+          <span class="val-badge" id="rst-v">800ms</span>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">クリック有効化しきい値</div>
+          <div class="row-hint">to_clickable_movement — 移動量がこれ以上でクリックモードに</div>
+        </div>
+        <div class="row-ctrl">
+          <input type="range" min="0" max="50" step="1" value="0"
+            oninput="setVal('thr-v',this.value);render()">
+          <span class="val-badge" id="thr-v">0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- キーマップ -->
+<div id="page-keymap" class="page">
+  <div class="page-header">
+    <div class="page-title">// keymaps</div>
+    <div class="page-desc">キーをクリックして割り当てを変更 — 変更はコード生成に反映されます</div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">レイヤー選択</span><span class="card-file">keymap.c</span></div>
+    <div class="card-body" style="padding-top:.75rem; padding-bottom:.75rem;">
+      <div class="layer-tabs">
+        <button class="ltab active" onclick="switchLayer(0,this)">L0 デフォルト</button>
+        <button class="ltab" onclick="switchLayer(1,this)">L1 シフト</button>
+        <button class="ltab" onclick="switchLayer(2,this)">L2 数字/矢印</button>
+        <button class="ltab" onclick="switchLayer(3,this)">L3 設定</button>
+        <button class="ltab" onclick="switchLayer(4,this)">L4 マウス</button>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:.5rem;font-family:var(--mono);">
+        左半分(上) ＋ 右半分(下) の順で表示
+      </div>
+      <div id="keygrid" class="keygrid"></div>
+      <div id="key-editor" class="key-editor-panel">
+        <div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:.5rem;">
+          選択中: <span id="sel-pos" style="color:var(--accent)">—</span>
+          &nbsp;現在: <span id="sel-cur" style="color:var(--amber)">—</span>
+        </div>
+        <div class="key-editor-row">
+          <label>変更後:</label>
+          <input type="text" id="new-kc" placeholder="例: KC_CAPS, MO(1), LT(2,KC_SPC)">
+          <button class="btn btn-primary" onclick="applyKey()">適用</button>
+          <button class="btn btn-ghost" onclick="closeEditor()">キャンセル</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;margin-top:.75rem;font-size:11px;font-family:var(--mono);color:var(--muted);">
+        <span style="color:#a78bfa">■ MO</span> モーメンタリー
+        <span style="color:#34d399">■ LT</span> ホールド=レイヤー/タップ=キー
+        <span style="color:#3a4563">■ ___</span> 透過
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- コード生成 -->
+<div id="page-output" class="page">
+  <div class="page-header">
+    <div class="page-title">// generate</div>
+    <div class="page-desc">現在の設定値からファームウェアファイルを生成します</div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">rules.mk — 機能スイッチ</span><span class="card-file">rules.mk</span></div>
+    <div class="card-body">
+      <div class="rule-row">
+        <div><div class="rule-key">RGB_MATRIX_ENABLE</div><div class="rule-val">RGB マトリクス LED</div></div>
+        <div class="toggle-wrap">
+          <div class="toggle on" id="tog-rgb" onclick="toggleRule(this,'tog-rgb-lbl')"></div>
+          <span class="toggle-label on" id="tog-rgb-lbl">yes</span>
+        </div>
+      </div>
+      <div class="rule-row">
+        <div><div class="rule-key">OLED_ENABLE</div><div class="rule-val">OLED ディスプレイ</div></div>
+        <div class="toggle-wrap">
+          <div class="toggle on" id="tog-oled" onclick="toggleRule(this,'tog-oled-lbl')"></div>
+          <span class="toggle-label on" id="tog-oled-lbl">yes</span>
+        </div>
+      </div>
+      <div class="rule-row">
+        <div><div class="rule-key">VIA_ENABLE</div><div class="rule-val">VIA / Remap 連携</div></div>
+        <div class="toggle-wrap">
+          <div class="toggle on" id="tog-via" onclick="toggleRule(this,'tog-via-lbl')"></div>
+          <span class="toggle-label on" id="tog-via-lbl">yes</span>
+        </div>
+      </div>
+      <div class="rule-row">
+        <div><div class="rule-key">RGBLIGHT_ENABLE</div><div class="rule-val">アンダーグロー (旧 LED)</div></div>
+        <div class="toggle-wrap">
+          <div class="toggle" id="tog-rgl" onclick="toggleRule(this,'tog-rgl-lbl')"></div>
+          <span class="toggle-label off" id="tog-rgl-lbl">no</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="out-configh"></div>
+  <div id="out-rulesmk"></div>
+</div>
+
+</main>
+</div>
+
+<script>
+// ---- Nav ----
+function show(page, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  el.classList.add('active');
+  if (page === 'output') render();
+}
+function setVal(id, v) { document.getElementById(id).textContent = v; }
+
+// ---- Toggle ----
+function toggleRule(el, lblId) {
+  el.classList.toggle('on');
+  const on = el.classList.contains('on');
+  const lbl = document.getElementById(lblId);
+  lbl.textContent = on ? 'yes' : 'no';
+  lbl.className = 'toggle-label ' + (on ? 'on' : 'off');
+}
+function ruleVal(id) { return document.getElementById(id).classList.contains('on') ? 'yes' : 'no'; }
+
+// ---- Helpers ----
+function getSlider(id) { return document.querySelector(`input[oninput*="${id}"]`)?.value || 0; }
+function getSliderId(id) {
+  const el = document.getElementById(id);
+  return el ? el.previousElementSibling?.value : null;
+}
+
+// ---- Keymap data ----
+const layers = [
+  // Layer 0
+  [
+    'KC_ESC','KC_1','KC_2','KC_3','KC_4','KC_5','KC_6','KC_7','KC_8','KC_9','KC_0','KC_MINS','','',
+    'KC_DEL','KC_Q','KC_W','KC_E','KC_R','KC_T','KC_Y','KC_U','KC_I','KC_O','KC_P','KC_INT3','','',
+    'KC_TAB','KC_A','KC_S','KC_D','KC_F','KC_G','KC_H','KC_J','KC_K','KC_L','KC_SCLN','S(KC_7)','','',
+    'MO(1)','KC_Z','KC_X','KC_C','KC_V','KC_B','KC_RBRC','KC_NUHS','KC_N','KC_M','KC_COMM','KC_DOT','KC_SLSH','KC_RSFT',
+    '_______','KC_LCTL','KC_LALT','KC_LGUI','LT(1,LNG2)','LT(2,SPC)','LT(3,LNG1)','KC_BSPC','LT(2,ENT)','LT(1,LNG2)','KC_RGUI','_______','KC_RALT','KC_PSCR'
+  ],
+  // Layer 1
+  [
+    'S(ESC)','S(1)','KC_LBRC','S(3)','S(4)','S(5)','KC_EQL','S(6)','S(QUOT)','S(8)','S(9)','S(INT1)','','',
+    'S(DEL)','S(Q)','S(W)','S(E)','S(R)','S(T)','S(Y)','S(U)','S(I)','S(O)','S(P)','S(INT3)','','',
+    'S(TAB)','S(A)','S(S)','S(D)','S(F)','S(G)','S(H)','S(J)','S(K)','S(L)','KC_QUOT','S(2)','','',
+    '_______','S(Z)','S(X)','S(C)','S(V)','S(B)','S(RBRC)','S(NUHS)','S(N)','S(M)','S(COMM)','S(DOT)','S(SLSH)','S(RSFT)',
+    '_______','S(LCTL)','S(LALT)','S(LGUI)','_______','_______','_______','_______','_______','_______','S(RGUI)','_______','S(RALT)','_______'
+  ],
+  // Layer 2
+  [
+    '_______','KC_F1','KC_F2','KC_F3','KC_F4','KC_F5','KC_F6','KC_F7','KC_F8','KC_F9','KC_F10','KC_F11','','',
+    '_______','_______','KC_7','KC_8','KC_9','_______','_______','KC_LEFT','KC_UP','KC_RGHT','_______','KC_F12','','',
+    '_______','_______','KC_4','KC_5','KC_6','S(SCLN)','KC_PGUP','KC_BTN1','KC_DOWN','KC_BTN2','KC_BTN3','_______','','',
+    '_______','_______','KC_1','KC_2','KC_3','S(MINS)','S(8)','S(9)','KC_PGDN','_______','_______','_______','_______','_______',
+    '_______','_______','KC_0','KC_DOT','_______','_______','_______','KC_DEL','_______','_______','_______','_______','_______','_______'
+  ],
+  // Layer 3
+  [
+    'RGB_TOG','_______','_______','_______','_______','_______','RGB_M_P','RGB_M_B','RGB_M_R','RGB_M_SW','RGB_M_SN','RGB_M_K','','',
+    'RGB_MOD','RGB_HUI','RGB_SAI','RGB_VAI','_______','_______','RGB_M_X','RGB_M_G','RGB_M_T','RGB_M_TW','_______','_______','','',
+    'RGB_RMOD','RGB_HUD','RGB_SAD','RGB_VAD','_______','_______','CPI_D1K','CPI_D100','CPI_I100','CPI_I1K','KBC_SAVE','KBC_RST','','',
+    '_______','_______','SCRL_DVD','SCRL_DVI','SCRL_MO','SCRL_TO','EEP_RST','EEP_RST','KC_HOME','KC_PGDN','KC_PGUP','KC_END','_______','_______',
+    'QK_BOOT','_______','KC_LEFT','KC_DOWN','KC_UP','KC_RGHT','_______','_______','KC_BSPC','_______','_______','_______','_______','QK_BOOT'
+  ],
+  // Layer 4
+  Array(70).fill('_______')
+];
+// Layer 4 mouse buttons
+layers[4][39] = 'KC_MY_BTN1';
+layers[4][41] = 'KC_MY_BTN2';
+
+let currentLayer = 0;
+let selectedKeyIdx = null;
+
+function classOf(k) {
+  if (!k || k === '') return 'empty';
+  if (k === '_______') return 'empty';
+  if (k.startsWith('MO(')) return 'mo';
+  if (k.startsWith('LT(')) return 'lt';
+  return '';
+}
+function labelOf(k) {
+  if (!k || k === '') return '';
+  if (k === '_______') return '___';
+  if (k.length > 10) return k.slice(0, 9) + '…';
+  return k;
+}
+
+function buildGrid() {
+  const grid = document.getElementById('keygrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  const data = layers[currentLayer];
+  data.forEach((k, i) => {
+    const d = document.createElement('div');
+    d.className = 'key ' + classOf(k) + (i === selectedKeyIdx ? ' selected' : '');
+    d.textContent = labelOf(k);
+    d.onclick = () => selectKey(i, k);
+    grid.appendChild(d);
+  });
+}
+function selectKey(i, k) {
+  selectedKeyIdx = i;
+  document.getElementById('sel-pos').textContent = 'L' + currentLayer + '-K' + i;
+  document.getElementById('sel-cur').textContent = k || '(空)';
+  document.getElementById('new-kc').value = '';
+  document.getElementById('key-editor').classList.add('visible');
+  buildGrid();
+}
+function applyKey() {
+  const nc = document.getElementById('new-kc').value.trim();
+  if (!nc || selectedKeyIdx === null) return;
+  layers[currentLayer][selectedKeyIdx] = nc;
+  closeEditor();
+}
+function closeEditor() {
+  selectedKeyIdx = null;
+  document.getElementById('key-editor').classList.remove('visible');
+  buildGrid();
+}
+function switchLayer(n, el) {
+  currentLayer = n;
+  selectedKeyIdx = null;
+  document.getElementById('key-editor').classList.remove('visible');
+  document.querySelectorAll('.ltab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  buildGrid();
+}
+
+// ---- Code generation ----
+function getV(sliderQuery, fallback) {
+  const el = document.querySelector(sliderQuery);
+  return el ? el.value : fallback;
+}
+function getS(id, fallback) {
+  const el = document.getElementById(id);
+  return el ? el.value : fallback;
+}
+
+function genConfigH() {
+  const cpi  = getV('input[oninput*="cpi-v"]', 700);
+  const scrl = getV('input[oninput*="scrl-v"]', 4);
+  const tap  = getV('input[oninput*="tap-v"]', 5);
+  const br   = getV('input[oninput*="br-v"]', 125);
+  const hue  = getV('input[oninput*="hue-v"]', 125);
+  const sat  = getV('input[oninput*="sat-v"]', 255);
+  const val  = getV('input[oninput*="val-v"]', 125);
+  const mode = getS('rgb-mode', 'RGB_MATRIX_TYPING_HEATMAP');
+  const sp   = getV('input[oninput*="sp-v"]', 32);
+  const cool = getV('input[oninput*="cool-v"]', 25);
+
+  return `/*
+ * config.h — Keyball61
+ * Generated by keyball.cfg editor
+ */
+#pragma once
+
+#define TAP_CODE_DELAY ${tap}
+#define DYNAMIC_KEYMAP_LAYER_COUNT 5
+
+#define KEYBALL_CPI_DEFAULT ${cpi}
+#define KEYBALL_SCROLL_DIV_DEFAULT ${scrl}
+
+// RGB Matrix
+#define RGB_MATRIX_LED_COUNT 74
+#define RGB_MATRIX_MAXIMUM_BRIGHTNESS ${br}
+#define RGB_MATRIX_DEFAULT_HUE ${hue}
+#define RGB_MATRIX_DEFAULT_SAT ${sat}
+#define RGB_MATRIX_DEFAULT_VAL ${val}
+#define RGB_MATRIX_FRAMEBUFFER_EFFECTS
+#define ENABLE_RGB_MATRIX_TYPING_HEATMAP
+#define RGB_MATRIX_TYPING_HEATMAP_SPREAD ${sp}
+#define RGB_MATRIX_TYPING_HEATMAP_AREA_LIMIT 16
+#define RGB_MATRIX_TYPING_HEATMAP_DECREASE_DELAY_MS ${cool}
+#define RGB_MATRIX_KEYPRESSES
+#define ENABLE_RGB_MATRIX_SOLID_REACTIVE_MULTIWIDE
+#define RGB_MATRIX_DEFAULT_MODE ${mode}`;
+}
+
+function genRulesMk() {
+  return `RGBLIGHT_ENABLE = ${ruleVal('tog-rgl')}
+RGB_MATRIX_ENABLE = ${ruleVal('tog-rgb')}
+OLED_ENABLE = ${ruleVal('tog-oled')}
+VIA_ENABLE = ${ruleVal('tog-via')}`;
+}
+
+function renderCodeBlock(containerId, filename, code) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  c.innerHTML = `
+    <div class="code-header" style="margin-top:1.25rem;">
+      <span class="code-filename">${filename}</span>
+      <button class="copy-btn" onclick="copyCode(this, '${containerId}-pre')">コピー</button>
+    </div>
+    <pre class="code-block" id="${containerId}-pre">${escHtml(code)}</pre>`;
+}
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function copyCode(btn, preId) {
+  const text = document.getElementById(preId).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓ コピーしました';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'コピー'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function render() {
+  renderCodeBlock('out-configh', 'config.h', genConfigH());
+  renderCodeBlock('out-rulesmk', 'rules.mk', genRulesMk());
+}
+
+// Init
+buildGrid();
+render();
+</script>
+</body>
+</html>
