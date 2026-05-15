@@ -405,6 +405,92 @@ input[type=text]:focus { border-color: var(--accent); }
 ::-webkit-scrollbar-track { background: var(--surface); }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
 
+/* Import */
+.import-section {
+  margin-top: auto;
+  padding: 1rem 1.25rem .75rem;
+  border-top: 1px solid var(--border);
+}
+.import-section-label {
+  font-size: 10px; font-weight: 500; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: .5rem;
+}
+.import-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; padding: .5rem;
+  font-family: var(--mono); font-size: 12px;
+  color: var(--accent); background: rgba(79,156,249,.08);
+  border: 1px solid rgba(79,156,249,.3); border-radius: 6px;
+  cursor: pointer; transition: all .15s;
+}
+.import-btn:hover { background: rgba(79,156,249,.16); border-color: var(--accent); }
+
+/* Import Modal */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.7); backdrop-filter: blur(3px);
+  z-index: 100; align-items: center; justify-content: center;
+}
+.modal-overlay.visible { display: flex; }
+.modal {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 12px; width: 540px; max-width: calc(100vw - 2rem);
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 24px 64px rgba(0,0,0,.5);
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
+}
+.modal-title { font-family: var(--mono); font-size: 14px; font-weight: 600; color: var(--text); }
+.modal-close {
+  background: none; border: none; color: var(--muted);
+  font-size: 18px; cursor: pointer; line-height: 1;
+  padding: 2px 6px; border-radius: 4px;
+}
+.modal-close:hover { color: var(--text); background: var(--surface2); }
+.modal-body { padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+.import-slot {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden;
+}
+.import-slot-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .6rem 1rem; border-bottom: 1px solid var(--border);
+}
+.import-slot-name { font-family: var(--mono); font-size: 12px; color: var(--accent); }
+.import-slot-status {
+  font-family: var(--mono); font-size: 11px;
+  padding: 2px 8px; border-radius: 4px;
+}
+.import-slot-status.ok { color: var(--green); background: rgba(52,211,153,.1); }
+.import-slot-status.pending { color: var(--muted); background: var(--surface); }
+.import-slot-status.error { color: var(--red); background: rgba(248,113,113,.1); }
+.import-drop {
+  padding: 1rem; display: flex; flex-direction: column;
+  align-items: center; gap: .5rem; cursor: pointer;
+  border: 2px dashed transparent; transition: border-color .15s;
+}
+.import-drop:hover, .import-drop.dragover { border-color: var(--accent); background: rgba(79,156,249,.04); }
+.import-drop-icon { font-size: 22px; }
+.import-drop-label { font-size: 12px; color: var(--muted); text-align: center; }
+.import-drop input[type=file] { display: none; }
+.import-parsed {
+  padding: .6rem 1rem; background: var(--surface);
+  border-top: 1px solid var(--border);
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  display: none;
+}
+.import-parsed.visible { display: block; }
+.import-parsed-item { display: flex; gap: 8px; margin-bottom: 2px; }
+.import-parsed-key { color: var(--muted); min-width: 180px; }
+.import-parsed-val { color: var(--text); }
+.modal-footer {
+  padding: 1rem 1.25rem; border-top: 1px solid var(--border);
+  display: flex; justify-content: flex-end; gap: 8px;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
   .app { grid-template-columns: 1fr; }
@@ -423,7 +509,7 @@ input[type=text]:focus { border-color: var(--accent); }
 <div class="app">
 
 <!-- Sidebar -->
-<nav class="sidebar">
+<nav class="sidebar" style="display:flex;flex-direction:column;">
   <div class="sidebar-logo">
     <div class="logo-title">⬡ keyball.cfg</div>
     <div class="logo-sub">keyball61 / QMK firmware</div>
@@ -444,6 +530,13 @@ input[type=text]:focus { border-color: var(--accent); }
   <div class="nav-group-label">出力</div>
   <div class="nav-item" onclick="show('output', this)">
     <span class="nav-dot"></span>コード生成
+  </div>
+  <div style="flex:1"></div>
+  <div class="import-section">
+    <div class="import-section-label">ファイル読み込み</div>
+    <div class="import-btn" onclick="openImportModal()">
+      ↑ 設定ファイルを読み込む
+    </div>
   </div>
 </nav>
 
@@ -811,6 +904,74 @@ input[type=text]:focus { border-color: var(--accent); }
 </div>
 
 </main>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay" id="import-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">// 設定ファイルを読み込む</div>
+      <button class="modal-close" onclick="closeImportModal()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- config.h -->
+      <div class="import-slot" id="slot-configh">
+        <div class="import-slot-header">
+          <span class="import-slot-name">config.h</span>
+          <span class="import-slot-status pending" id="status-configh">未読み込み</span>
+        </div>
+        <label class="import-drop" id="drop-configh"
+          ondragover="handleDragOver(event,'configh')"
+          ondragleave="handleDragLeave('configh')"
+          ondrop="handleDrop(event,'configh')">
+          <span class="import-drop-icon">📄</span>
+          <span class="import-drop-label">クリックまたはドラッグ&ドロップ</span>
+          <input type="file" accept=".h,.c,.mk,text/*" onchange="handleFile(event,'configh')">
+        </label>
+        <div class="import-parsed" id="parsed-configh"></div>
+      </div>
+
+      <!-- keymap.c -->
+      <div class="import-slot" id="slot-keymapc">
+        <div class="import-slot-header">
+          <span class="import-slot-name">keymap.c</span>
+          <span class="import-slot-status pending" id="status-keymapc">未読み込み</span>
+        </div>
+        <label class="import-drop" id="drop-keymapc"
+          ondragover="handleDragOver(event,'keymapc')"
+          ondragleave="handleDragLeave('keymapc')"
+          ondrop="handleDrop(event,'keymapc')">
+          <span class="import-drop-icon">📄</span>
+          <span class="import-drop-label">クリックまたはドラッグ&ドロップ</span>
+          <input type="file" accept=".h,.c,.mk,text/*" onchange="handleFile(event,'keymapc')">
+        </label>
+        <div class="import-parsed" id="parsed-keymapc"></div>
+      </div>
+
+      <!-- rules.mk -->
+      <div class="import-slot" id="slot-rulesmk">
+        <div class="import-slot-header">
+          <span class="import-slot-name">rules.mk</span>
+          <span class="import-slot-status pending" id="status-rulesmk">未読み込み</span>
+        </div>
+        <label class="import-drop" id="drop-rulesmk"
+          ondragover="handleDragOver(event,'rulesmk')"
+          ondragleave="handleDragLeave('rulesmk')"
+          ondrop="handleDrop(event,'rulesmk')">
+          <span class="import-drop-icon">📄</span>
+          <span class="import-drop-label">クリックまたはドラッグ&ドロップ</span>
+          <input type="file" accept=".h,.c,.mk,text/*" onchange="handleFile(event,'rulesmk')">
+        </label>
+        <div class="import-parsed" id="parsed-rulesmk"></div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeImportModal()">キャンセル</button>
+      <button class="btn btn-primary" id="import-apply-btn" onclick="applyImport()" disabled>反映する</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1355,6 +1516,234 @@ function render() {
   renderCodeBlock('out-configh',  'config.h',  genConfigH());
   renderCodeBlock('out-keymapC',  'keymap.c',  genKeymapC());
   renderCodeBlock('out-rulesmk',  'rules.mk',  genRulesMk());
+}
+
+// ---- Import logic ----
+const importData = { configh: null, keymapc: null, rulesmk: null };
+
+function openImportModal() {
+  document.getElementById('import-modal').classList.add('visible');
+}
+function closeImportModal() {
+  document.getElementById('import-modal').classList.remove('visible');
+}
+// close on overlay click
+document.getElementById('import-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeImportModal();
+});
+
+function handleDragOver(e, slot) {
+  e.preventDefault();
+  document.getElementById('drop-' + slot).classList.add('dragover');
+}
+function handleDragLeave(slot) {
+  document.getElementById('drop-' + slot).classList.remove('dragover');
+}
+function handleDrop(e, slot) {
+  e.preventDefault();
+  handleDragLeave(slot);
+  const file = e.dataTransfer.files[0];
+  if (file) readFile(file, slot);
+}
+function handleFile(e, slot) {
+  const file = e.target.files[0];
+  if (file) readFile(file, slot);
+}
+function readFile(file, slot) {
+  const reader = new FileReader();
+  reader.onload = (e) => parseFile(e.target.result, slot, file.name);
+  reader.readAsText(file);
+}
+
+// --- Parsers ---
+function parseConfigH(text) {
+  const def = (name) => {
+    const m = text.match(new RegExp(`#define\\s+${name}\\s+(\\S+)`));
+    return m ? m[1] : null;
+  };
+  return {
+    KEYBALL_CPI_DEFAULT:           def('KEYBALL_CPI_DEFAULT'),
+    KEYBALL_SCROLL_DIV_DEFAULT:    def('KEYBALL_SCROLL_DIV_DEFAULT'),
+    TAP_CODE_DELAY:                def('TAP_CODE_DELAY'),
+    RGB_MATRIX_MAXIMUM_BRIGHTNESS: def('RGB_MATRIX_MAXIMUM_BRIGHTNESS'),
+    RGB_MATRIX_DEFAULT_HUE:        def('RGB_MATRIX_DEFAULT_HUE'),
+    RGB_MATRIX_DEFAULT_SAT:        def('RGB_MATRIX_DEFAULT_SAT'),
+    RGB_MATRIX_DEFAULT_VAL:        def('RGB_MATRIX_DEFAULT_VAL'),
+    RGB_MATRIX_DEFAULT_MODE:       def('RGB_MATRIX_DEFAULT_MODE'),
+    RGB_MATRIX_TYPING_HEATMAP_SPREAD:        def('RGB_MATRIX_TYPING_HEATMAP_SPREAD'),
+    RGB_MATRIX_TYPING_HEATMAP_DECREASE_DELAY_MS: def('RGB_MATRIX_TYPING_HEATMAP_DECREASE_DELAY_MS'),
+  };
+}
+
+function parseRulesMk(text) {
+  const val = (name) => {
+    const m = text.match(new RegExp(`^\\s*${name}\\s*=\\s*(\\S+)`, 'm'));
+    return m ? m[1].trim() : null;
+  };
+  return {
+    RGB_MATRIX_ENABLE: val('RGB_MATRIX_ENABLE'),
+    OLED_ENABLE:       val('OLED_ENABLE'),
+    VIA_ENABLE:        val('VIA_ENABLE'),
+    RGBLIGHT_ENABLE:   val('RGBLIGHT_ENABLE'),
+  };
+}
+
+function parseKeymapC(text) {
+  // Extract to_reset_time
+  const resetM = text.match(/to_reset_time\s*=\s*(\d+)/);
+  // Extract to_clickable_movement
+  const thrM = text.match(/to_clickable_movement\s*=\s*(\d+)/);
+  // Extract click_layer
+  const clM = text.match(/click_layer\s*=\s*(\d+)/);
+  // Extract scroll mode layer from keyball_set_scroll_mode(...)
+  const scrollM = text.match(/keyball_set_scroll_mode\s*\(([^)]+)\)/);
+  let scrollLayer = null;
+  if (scrollM) {
+    const cond = scrollM[1];
+    if (cond.includes('== 1') && cond.includes('== 3')) scrollLayer = 'both';
+    else { const nm = cond.match(/==\s*(\d+)/); if (nm) scrollLayer = nm[1]; }
+  }
+
+  // Extract keymaps — find each LAYOUT_universal(...) block
+  const layerMaps = [];
+  const layerRe = /\[(\d)\]\s*=\s*LAYOUT_universal\s*\(([\s\S]*?)\)/g;
+  let lm;
+  while ((lm = layerRe.exec(text)) !== null) {
+    const idx = parseInt(lm[1]);
+    // split by comma, strip whitespace and comments
+    const raw = lm[2].replace(/\/\/[^\n]*/g, '').split(',')
+      .map(s => s.trim()).filter(s => s.length > 0);
+    layerMaps[idx] = raw;
+  }
+
+  return {
+    to_reset_time: resetM ? resetM[1] : null,
+    to_clickable_movement: thrM ? thrM[1] : null,
+    click_layer: clM ? clM[1] : null,
+    scroll_layer: scrollLayer,
+    layers: layerMaps,
+  };
+}
+
+function parseFile(text, slot, filename) {
+  let parsed = null;
+  let preview = [];
+  let ok = false;
+
+  try {
+    if (slot === 'configh') {
+      parsed = parseConfigH(text);
+      const found = Object.entries(parsed).filter(([,v]) => v !== null);
+      ok = found.length > 0;
+      preview = found.map(([k,v]) => `<div class="import-parsed-item"><span class="import-parsed-key">${k}</span><span class="import-parsed-val">${v}</span></div>`);
+    } else if (slot === 'rulesmk') {
+      parsed = parseRulesMk(text);
+      const found = Object.entries(parsed).filter(([,v]) => v !== null);
+      ok = found.length > 0;
+      preview = found.map(([k,v]) => `<div class="import-parsed-item"><span class="import-parsed-key">${k}</span><span class="import-parsed-val">${v}</span></div>`);
+    } else if (slot === 'keymapc') {
+      parsed = parseKeymapC(text);
+      ok = !!(parsed.to_reset_time || parsed.click_layer || (parsed.layers && parsed.layers.length));
+      if (parsed.to_reset_time)         preview.push(`<div class="import-parsed-item"><span class="import-parsed-key">to_reset_time</span><span class="import-parsed-val">${parsed.to_reset_time} ms</span></div>`);
+      if (parsed.to_clickable_movement) preview.push(`<div class="import-parsed-item"><span class="import-parsed-key">to_clickable_movement</span><span class="import-parsed-val">${parsed.to_clickable_movement}</span></div>`);
+      if (parsed.click_layer)           preview.push(`<div class="import-parsed-item"><span class="import-parsed-key">click_layer</span><span class="import-parsed-val">Layer ${parsed.click_layer}</span></div>`);
+      if (parsed.scroll_layer)          preview.push(`<div class="import-parsed-item"><span class="import-parsed-key">scroll_layer</span><span class="import-parsed-val">${parsed.scroll_layer}</span></div>`);
+      if (parsed.layers) preview.push(`<div class="import-parsed-item"><span class="import-parsed-key">keymaps</span><span class="import-parsed-val">${parsed.layers.filter(Boolean).length} レイヤー検出</span></div>`);
+    }
+  } catch(e) { ok = false; }
+
+  importData[slot] = ok ? parsed : null;
+
+  const status = document.getElementById('status-' + slot);
+  const parsedEl = document.getElementById('parsed-' + slot);
+  if (ok) {
+    status.textContent = '✓ 読み込み済み';
+    status.className = 'import-slot-status ok';
+    parsedEl.innerHTML = preview.join('');
+    parsedEl.classList.add('visible');
+  } else {
+    status.textContent = '⚠ 解析できませんでした';
+    status.className = 'import-slot-status error';
+    parsedEl.innerHTML = `<div style="color:var(--red);font-size:11px;">対応する設定値が見つかりませんでした。ファイルを確認してください。</div>`;
+    parsedEl.classList.add('visible');
+  }
+
+  // Enable apply button if any slot has data
+  const anyOk = Object.values(importData).some(v => v !== null);
+  document.getElementById('import-apply-btn').disabled = !anyOk;
+}
+
+function setSlider(query, value) {
+  const el = document.querySelector(query);
+  if (el && value !== null) { el.value = value; el.dispatchEvent(new Event('input')); }
+}
+function setSelect(id, value) {
+  const el = document.getElementById(id);
+  if (el && value !== null) { el.value = value; }
+}
+function setToggle(id, lblId, value) {
+  const el = document.getElementById(id);
+  const lbl = document.getElementById(lblId);
+  if (!el || value === null) return;
+  const on = value.toLowerCase() === 'yes';
+  if (on) el.classList.add('on'); else el.classList.remove('on');
+  lbl.textContent = on ? 'yes' : 'no';
+  lbl.className = 'toggle-label ' + (on ? 'on' : 'off');
+}
+
+function applyImport() {
+  const ch = importData.configh;
+  if (ch) {
+    setSlider('input[oninput*="cpi-v"]',  ch.KEYBALL_CPI_DEFAULT);
+    setSlider('input[oninput*="scrl-v"]', ch.KEYBALL_SCROLL_DIV_DEFAULT);
+    setSlider('input[oninput*="tap-v"]',  ch.TAP_CODE_DELAY);
+    setSlider('input[oninput*="br-v"]',   ch.RGB_MATRIX_MAXIMUM_BRIGHTNESS);
+    setSlider('input[oninput*="hue-v"]',  ch.RGB_MATRIX_DEFAULT_HUE);
+    setSlider('input[oninput*="sat-v"]',  ch.RGB_MATRIX_DEFAULT_SAT);
+    setSlider('input[oninput*="val-v"]',  ch.RGB_MATRIX_DEFAULT_VAL);
+    setSlider('input[oninput*="sp-v"]',   ch.RGB_MATRIX_TYPING_HEATMAP_SPREAD);
+    setSlider('input[oninput*="cool-v"]', ch.RGB_MATRIX_TYPING_HEATMAP_DECREASE_DELAY_MS);
+    if (ch.RGB_MATRIX_DEFAULT_MODE) setSelect('rgb-mode', ch.RGB_MATRIX_DEFAULT_MODE);
+  }
+
+  const rm = importData.rulesmk;
+  if (rm) {
+    setToggle('tog-rgb',  'tog-rgb-lbl',  rm.RGB_MATRIX_ENABLE);
+    setToggle('tog-oled', 'tog-oled-lbl', rm.OLED_ENABLE);
+    setToggle('tog-via',  'tog-via-lbl',  rm.VIA_ENABLE);
+    setToggle('tog-rgl',  'tog-rgl-lbl',  rm.RGBLIGHT_ENABLE);
+  }
+
+  const kc = importData.keymapc;
+  if (kc) {
+    setSlider('input[oninput*="rst-v"]', kc.to_reset_time);
+    setSlider('input[oninput*="thr-v"]', kc.to_clickable_movement);
+    if (kc.click_layer)  setSelect('click-layer',  kc.click_layer);
+    if (kc.scroll_layer) setSelect('scroll-layer', kc.scroll_layer);
+    if (kc.layers) {
+      kc.layers.forEach((lyr, idx) => {
+        if (!lyr) return;
+        // layers array has 14 cols per row in generator; keymap.c LAYOUT has 12 per row (rows 0-3) + 14 (row 4)
+        // rebuild as 70-element array matching our internal format
+        const target = [];
+        // rows 0-3: 12 keys + 2 spacers = 14 cols
+        for (let r = 0; r < 4; r++) {
+          const slice = lyr.slice(r * 12, r * 12 + 12);
+          target.push(...slice);
+          target.push('', ''); // spacers
+        }
+        // row 4 thumb: remaining keys
+        const thumbStart = 4 * 12;
+        const thumb = lyr.slice(thumbStart, thumbStart + 14);
+        target.push(...thumb);
+        layers[idx] = target;
+      });
+      buildGrid();
+    }
+  }
+
+  render();
+  closeImportModal();
 }
 
 // Init
